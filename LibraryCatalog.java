@@ -203,4 +203,52 @@ public class LibraryCatalog {
     public List<LoanTransaction> getCompletedHistory() {
         return Collections.unmodifiableList(completedHistory);
     }
+
+    /**
+     * Prints an ASCII visual shelf representation of library inventory.
+     */
+    public void displayShelfOverview() {
+        System.out.println("\n+----------------------------------------------------------------------------------------------------+");
+        System.out.printf("| %-98s |\n", libraryName.toUpperCase() + " - PHYSICAL & DIGITAL SHELF MAP");
+        System.out.println("+------------+-------------------------------------+--------------+----------------------------------+");
+        System.out.printf("| %-10s | %-35s | %-12s | %-32s |\n", "ITEM ID", "TITLE (YEAR)", "STATUS", "DETAILS / BORROWER");
+        System.out.println("+------------+-------------------------------------+--------------+----------------------------------+");
+
+        if (inventory.isEmpty()) {
+            System.out.println("|                              No items registered in library catalog                                |");
+        } else {
+            for (LibraryItem item : inventory) {
+                String statusStr;
+                String extraInfo;
+                if (item instanceof ReferenceMaterial) {
+                    statusStr = "[IN-LIB]";
+                    extraInfo = ((ReferenceMaterial) item).getShelfLocation();
+                } else if (item.isAvailable()) {
+                    statusStr = "[AVAILABLE]";
+                    extraInfo = item.getItemType();
+                } else {
+                    statusStr = "[ON LOAN]";
+                    extraInfo = "Patron: " + item.getCurrentBorrowerId();
+                }
+
+                String displayTitle = item.getTitle();
+                if (displayTitle.length() > 27) {
+                    displayTitle = displayTitle.substring(0, 24) + "...";
+                }
+                displayTitle = String.format("%s (%d)", displayTitle, item.getPublicationYear());
+
+                if (extraInfo.length() > 32) {
+                    extraInfo = extraInfo.substring(0, 29) + "...";
+                }
+
+                System.out.printf("| %-10s | %-35s | %-12s | %-32s |\n",
+                        item.getItemId(), displayTitle, statusStr, extraInfo);
+            }
+        }
+
+        System.out.println("+------------+-------------------------------------+--------------+----------------------------------+");
+        System.out.printf("| Statistics: %d Total Items | %d Available / Reading Room | %d Currently Loaned Out%-18s |\n",
+                getTotalItemCount(), getAvailableItemCount(), getLoanedItemCount(), "");
+        System.out.println("+----------------------------------------------------------------------------------------------------+\n");
+    }
 }
