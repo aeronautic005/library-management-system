@@ -157,4 +157,50 @@ public class LibraryCatalog {
     public List<LoanTransaction> getActiveLoans() {
         return Collections.unmodifiableList(activeLoans);
     }
+
+    /**
+     * Processes return of a catalog item, updates availability, and computes overdue fines.
+     * @param itemId barcode or catalog ID of the item being returned
+     * @param actualDaysKept number of days the item was in borrower's possession
+     * @return completed LoanTransaction with financial fine calculation
+     * @throws InvalidDurationException if actualDaysKept is negative
+     */
+    public LoanTransaction returnItem(String itemId, int actualDaysKept) throws InvalidDurationException {
+        LibraryItem item = findItemById(itemId);
+        if (item == null) {
+            throw new IllegalArgumentException("Item with ID '" + itemId + "' not found in catalog.");
+        }
+        if (item.isAvailable()) {
+            throw new IllegalStateException("Item '" + itemId + "' is already in library inventory (not on loan).");
+        }
+
+        // Locate active transaction
+        LoanTransaction activeTx = null;
+        for (LoanTransaction tx : activeLoans) {
+            if (tx.getItemId().equalsIgnoreCase(item.getItemId())) {
+                activeTx = tx;
+                break;
+            }
+        }
+
+        double baseFine = item.returnItem(actualDaysKept);
+
+        if (activeTx != null) {
+            activeTx.recordReturn(actualDaysKept, baseFine);
+            activeLoans.remove(activeTx);
+            completedHistory.add(activeTx);
+            return activeTx;
+        } else {
+            // Fallback transaction if checkout wasn't tracked via activeLoans
+            LoanTransaction manualTx = new LoanTransaction(
+                    item.getItemId(), item.getTitle(), "GUEST", "Walk-in Patron", MembershipTier.REGULAR, 7);
+            manualTx.recordReturn(actualDaysKept, baseFine);
+            completedHistory.add(manualTx);
+            return manualTx;
+        }
+    }
+
+    public List<LoanTransaction> getCompletedHistory() {
+        return Collections.unmodifiableList(completedHistory);
+    }
 }
