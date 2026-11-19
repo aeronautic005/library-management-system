@@ -223,6 +223,175 @@ public class LibraryApp {
     }
 
     private static void runAutomatedTestSuite() {
-        System.out.println("\n[Automated Test Suite will be wired in the test commit]");
+        System.out.println("\n==================================================================");
+        System.out.println("     RUNNING AUTOMATED OOP VERIFICATION & EXCEPTION TEST SUITE     ");
+        System.out.println("==================================================================");
+
+        int passed = 0;
+        int total = 0;
+
+        // Test 1: On-time Book Return
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b1 = new Book("T-BK1", "Test Book 1", 2021, "Author A", "Tech", "12345");
+            testCatalog.addItem(b1);
+            testCatalog.checkoutItem("T-BK1", "U1", "Alice", MembershipTier.REGULAR, 7);
+            LoanTransaction tx = testCatalog.returnItem("T-BK1", 5); // Returned within 7 days
+            if (tx.getNetFinePaid() == 0.0 && b1.isAvailable()) {
+                System.out.println(" [PASS] Test 1: On-time Book return calculates $0.00 fine and restores availability.");
+                passed++;
+            } else {
+                System.out.println(" [FAIL] Test 1: Fine mismatch or availability not restored.");
+            }
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 1 encountered exception: " + e.getMessage());
+        }
+
+        // Test 2: Overdue Book Fine Calculation (Standard Patron)
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b2 = new Book("T-BK2", "Test Book 2", 2020, "Author B", "Science", "67890");
+            testCatalog.addItem(b2);
+            testCatalog.checkoutItem("T-BK2", "U2", "Bob", MembershipTier.REGULAR, 10);
+            LoanTransaction tx = testCatalog.returnItem("T-BK2", 14); // 4 days overdue * $1.00 = $4.00
+            if (Math.abs(tx.getNetFinePaid() - 4.00) < 0.001) {
+                System.out.println(" [PASS] Test 2: Regular Patron overdue fine calculated accurately ($4.00 for 4 days).");
+                passed++;
+            } else {
+                System.out.printf(" [FAIL] Test 2: Expected $4.00, got $%.2f\n", tx.getNetFinePaid());
+            }
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 2 encountered exception: " + e.getMessage());
+        }
+
+        // Test 3: Student Tier 25% Fine Discount
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b3 = new Book("T-BK3", "Test Book 3", 2020, "Author C", "History", "11223");
+            testCatalog.addItem(b3);
+            testCatalog.checkoutItem("T-BK3", "S1", "Charlie", MembershipTier.STUDENT, 10);
+            LoanTransaction tx = testCatalog.returnItem("T-BK3", 14); // 4 days overdue: gross $4.00, net $3.00 (25% off)
+            if (Math.abs(tx.getNetFinePaid() - 3.00) < 0.001 && Math.abs(tx.getDiscountAmount() - 1.00) < 0.001) {
+                System.out.println(" [PASS] Test 3: Student Scholar receives 25% fine discount ($3.00 net on $4.00 gross).");
+                passed++;
+            } else {
+                System.out.printf(" [FAIL] Test 3: Expected $3.00 net, got $%.2f\n", tx.getNetFinePaid());
+            }
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 3 encountered exception: " + e.getMessage());
+        }
+
+        // Test 4: Faculty Tier 50% Fine Discount
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b4 = new Book("T-BK4", "Test Book 4", 2019, "Author D", "Math", "33445");
+            testCatalog.addItem(b4);
+            testCatalog.checkoutItem("T-BK4", "F1", "Dr. Stone", MembershipTier.FACULTY, 10);
+            LoanTransaction tx = testCatalog.returnItem("T-BK4", 14); // 4 days overdue: gross $4.00, net $2.00 (50% off)
+            if (Math.abs(tx.getNetFinePaid() - 2.00) < 0.001 && Math.abs(tx.getDiscountAmount() - 2.00) < 0.001) {
+                System.out.println(" [PASS] Test 4: Faculty Member receives 50% fine discount ($2.00 net on $4.00 gross).");
+                passed++;
+            } else {
+                System.out.printf(" [FAIL] Test 4: Expected $2.00 net, got $%.2f\n", tx.getNetFinePaid());
+            }
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 4 encountered exception: " + e.getMessage());
+        }
+
+        // Test 5: ItemUnavailableException Handling
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b5 = new Book("T-BK5", "Test Book 5", 2022, "Author E", "Design", "55667");
+            testCatalog.addItem(b5);
+            testCatalog.checkoutItem("T-BK5", "U1", "Alice", MembershipTier.REGULAR, 7);
+            // Attempt to checkout again by another user
+            testCatalog.checkoutItem("T-BK5", "U2", "Bob", MembershipTier.REGULAR, 7);
+            System.out.println(" [FAIL] Test 5: Failed to throw ItemUnavailableException on already checked out item.");
+        } catch (ItemUnavailableException e) {
+            System.out.println(" [PASS] Test 5: Successfully intercepted ItemUnavailableException: " + e.getMessage());
+            passed++;
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 5: Threw unexpected exception type: " + e.getClass().getName());
+        }
+
+        // Test 6: BorrowLimitExceededException Handling
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            for (int i = 1; i <= 4; i++) {
+                testCatalog.addItem(new Book("T-BK" + (10 + i), "Title " + i, 2020, "Author", "Gen", "ISBN" + i));
+            }
+            // Regular tier limit is 3 items
+            testCatalog.checkoutItem("T-BK11", "U1", "Alice", MembershipTier.REGULAR, 7);
+            testCatalog.checkoutItem("T-BK12", "U1", "Alice", MembershipTier.REGULAR, 7);
+            testCatalog.checkoutItem("T-BK13", "U1", "Alice", MembershipTier.REGULAR, 7);
+            // 4th checkout should throw BorrowLimitExceededException
+            testCatalog.checkoutItem("T-BK14", "U1", "Alice", MembershipTier.REGULAR, 7);
+            System.out.println(" [FAIL] Test 6: Failed to enforce borrow quota limit.");
+        } catch (BorrowLimitExceededException e) {
+            System.out.println(" [PASS] Test 6: Successfully intercepted BorrowLimitExceededException (Quota = " + e.getMaxAllowed() + ").");
+            passed++;
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 6: Threw unexpected exception type: " + e.getClass().getName());
+        }
+
+        // Test 7: Non-Circulating Reference Material Restriction
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            ReferenceMaterial ref = new ReferenceMaterial("T-REF1", "Rare Atlas", 1910, "Geography", "Vault");
+            testCatalog.addItem(ref);
+            testCatalog.checkoutItem("T-REF1", "U1", "Alice", MembershipTier.REGULAR, 3);
+            System.out.println(" [FAIL] Test 7: Allowed checkout of non-circulating reference material.");
+        } catch (InvalidDurationException e) {
+            System.out.println(" [PASS] Test 7: Successfully blocked reference loan with InvalidDurationException: " + e.getMessage());
+            passed++;
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 7: Threw unexpected exception type: " + e.getClass().getName());
+        }
+
+        // Test 8: Non-Positive Duration Validation
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            Book b8 = new Book("T-BK8", "Test Book 8", 2021, "Author F", "Fiction", "99887");
+            testCatalog.addItem(b8);
+            testCatalog.checkoutItem("T-BK8", "U1", "Alice", MembershipTier.REGULAR, 0);
+            System.out.println(" [FAIL] Test 8: Allowed non-positive duration (0 days).");
+        } catch (InvalidDurationException e) {
+            System.out.println(" [PASS] Test 8: Successfully rejected non-positive duration with InvalidDurationException.");
+            passed++;
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 8: Threw unexpected exception type: " + e.getClass().getName());
+        }
+
+        // Test 9: Digital Media Overdue Fine & License Fee
+        total++;
+        try {
+            LibraryCatalog testCatalog = new LibraryCatalog("Test Facility");
+            DigitalMedia dig = new DigitalMedia("T-DIG1", "Cloud Computing Video", 2023, "Video", 1200.0, 10.00);
+            testCatalog.addItem(dig);
+            testCatalog.checkoutItem("T-DIG1", "U1", "Alice", MembershipTier.REGULAR, 7);
+            // 2 days overdue (9 days kept): base fine = (2 * $2.50) + ($10.00 * 0.50) = $5.00 + $5.00 = $10.00
+            LoanTransaction tx = testCatalog.returnItem("T-DIG1", 9);
+            if (Math.abs(tx.getNetFinePaid() - 10.00) < 0.001) {
+                System.out.println(" [PASS] Test 9: Digital Media fine includes daily rate plus license fee ($10.00 total).");
+                passed++;
+            } else {
+                System.out.printf(" [FAIL] Test 9: Expected $10.00, got $%.2f\n", tx.getNetFinePaid());
+            }
+        } catch (Exception e) {
+            System.out.println(" [FAIL] Test 9 encountered exception: " + e.getMessage());
+        }
+
+        System.out.println("------------------------------------------------------------------");
+        System.out.printf(" Automated Test Results: %d / %d PASSED (%.1f%%)\n",
+                passed, total, ((double) passed / total) * 100);
+        System.out.println("==================================================================\n");
     }
 }
