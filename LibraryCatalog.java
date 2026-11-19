@@ -109,4 +109,52 @@ public class LibraryCatalog {
         }
         return count;
     }
+
+    /**
+     * Processes checkout of a catalog item with member tier quota and availability checks.
+     * @param itemId barcode or catalog ID
+     * @param borrowerId patron unique ID
+     * @param borrowerName patron name
+     * @param tier patron membership tier
+     * @param requestedDays duration in days
+     * @return generated active LoanTransaction
+     * @throws ItemUnavailableException if item is already borrowed
+     * @throws BorrowLimitExceededException if patron exceeds allowed checkout quota
+     * @throws InvalidDurationException if requested days exceed limits or are non-positive
+     */
+    public LoanTransaction checkoutItem(String itemId, String borrowerId, String borrowerName,
+                                        MembershipTier tier, int requestedDays)
+            throws ItemUnavailableException, BorrowLimitExceededException, InvalidDurationException {
+        LibraryItem item = findItemById(itemId);
+        if (item == null) {
+            throw new IllegalArgumentException("Item with ID '" + itemId + "' not found in catalog.");
+        }
+
+        MembershipTier memberTier = (tier == null) ? MembershipTier.REGULAR : tier;
+        int activeLoansCount = getActiveLoanCountForMember(borrowerId);
+
+        if (activeLoansCount >= memberTier.getMaxBorrowLimit()) {
+            throw new BorrowLimitExceededException(borrowerId, borrowerName, activeLoansCount, memberTier.getMaxBorrowLimit());
+        }
+
+        // Tier multiplier allows extended loan periods for scholars and faculty
+        int allowableDays = (int) Math.round(item.getMaxLoanDays() * memberTier.getMaxDaysMultiplier());
+        if (requestedDays > allowableDays) {
+            throw new InvalidDurationException(requestedDays,
+                    String.format("Requested %d days exceeds tier allowable limit of %d days for %s (%s).",
+                            requestedDays, allowableDays, item.getItemType(), memberTier.getDescription()));
+        }
+
+        // Delegate to item for state transition and base validation
+        item.borrowItem(borrowerId, requestedDays);
+
+        LoanTransaction transaction = new LoanTransaction(
+                item.getItemId(), item.getTitle(), borrowerId, borrowerName, memberTier, requestedDays);
+        activeLoans.add(transaction);
+        return transaction;
+    }
+
+    public List<LoanTransaction> getActiveLoans() {
+        return Collections.unmodifiableList(activeLoans);
+    }
 }
