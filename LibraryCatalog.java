@@ -251,4 +251,51 @@ public class LibraryCatalog {
                 getTotalItemCount(), getAvailableItemCount(), getLoanedItemCount(), "");
         System.out.println("+----------------------------------------------------------------------------------------------------+\n");
     }
+
+    /**
+     * Generates a comprehensive financial audit and circulation report.
+     */
+    public void generateFinancialAuditReport() {
+        double totalGrossFines = 0.0;
+        double totalDiscounts = 0.0;
+        double totalNetFines = 0.0;
+
+        for (LoanTransaction tx : completedHistory) {
+            totalGrossFines += tx.getBaseFine();
+            totalDiscounts += tx.getDiscountAmount();
+            totalNetFines += tx.getNetFinePaid();
+        }
+
+        System.out.println("\n==========================================================================================");
+        System.out.println("                 LIBRARY CIRCULATION & FINANCIAL AUDIT LEDGER REPORT                     ");
+        System.out.println("==========================================================================================");
+        System.out.printf(" Library Facility            : %s\n", libraryName);
+        System.out.printf(" Total Registered Items      : %d\n", getTotalItemCount());
+        System.out.printf(" Active Loans in Circulation : %d\n", activeLoans.size());
+        System.out.printf(" Completed Return Records    : %d\n", completedHistory.size());
+        System.out.println("------------------------------------------------------------------------------------------");
+        System.out.printf(" Total Gross Fines Assessed  : $%12.2f\n", totalGrossFines);
+        System.out.printf(" Total Tier Discounts Given  :-$%12.2f\n", totalDiscounts);
+        System.out.printf(" Total Net Revenue Collected : $%12.2f\n", totalNetFines);
+        System.out.println("==========================================================================================");
+        System.out.printf("| %-10s | %-12s | %-18s | %-12s | %-10s | %-12s |\n",
+                "TXN ID", "PATRON ID", "ITEM", "TIER", "OVERDUE", "FINE PAID");
+        System.out.println("+------------+--------------+--------------------+--------------+------------+--------------+");
+
+        if (completedHistory.isEmpty()) {
+            System.out.println("|                      No completed return transactions on record                         |");
+        } else {
+            for (LoanTransaction tx : completedHistory) {
+                int overdue = Math.max(0, tx.getActualDaysKept() - tx.getScheduledDays());
+                String titleCut = tx.getItemTitle();
+                if (titleCut.length() > 18) {
+                    titleCut = titleCut.substring(0, 15) + "...";
+                }
+                System.out.printf("| %-10s | %-12s | %-18s | %-12s | %-10s | $%10.2f |\n",
+                        tx.getTransactionId(), tx.getBorrowerId(), titleCut,
+                        tx.getMemberTier().name(), overdue + " days", tx.getNetFinePaid());
+            }
+        }
+        System.out.println("==========================================================================================\n");
+    }
 }
